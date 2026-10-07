@@ -4,15 +4,19 @@ LABEL org.opencontainers.image.source=https://github.com/ezazulhaq/docker-compos
 
 USER root
 
-# Install Python 3, JDK 21, and necessary tools
+# Install Python 3, JDK 21, Maven, and necessary tools
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
     openjdk-21-jdk \
+    maven \
     curl \
     git \
     && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64
+ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Switch back to the default coder user
 USER 1000
@@ -36,7 +40,6 @@ RUN extensions="angular.ng-template \
     humao.rest-client \
     jasonnutter.search-node-modules \
     mgmcdermott.vscode-language-babel \
-    ms-azuretools.vscode-containers \
     ms-azuretools.vscode-docker \
     redhat.java \
     sonarsource.sonarlint-vscode \
