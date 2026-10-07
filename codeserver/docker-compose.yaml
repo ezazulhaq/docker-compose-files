@@ -6,6 +6,7 @@ services:
       - 8080
     volumes:
       - code-server-home:/home/coder
+      - ${WORKSPACE}:/home/coder/workspace
     environment:
       - PASSWORD=${PASSWORD}
       - TZ=${TZ}
