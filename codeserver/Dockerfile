@@ -48,7 +48,6 @@ RUN extensions="angular.ng-template \
     humao.rest-client \
     jasonnutter.search-node-modules \
     mgmcdermott.vscode-language-babel \
-    ms-azuretools.vscode-docker \
     redhat.java \
     sonarsource.sonarlint-vscode \
     vmware.vscode-boot-dev-pack \
