@@ -44,7 +44,7 @@ RUN extensions="angular.ng-template \
     dbaeumer.vscode-eslint \
     eamodio.gitlens \
     esbenp.prettier-vscode \
-    google.google-antigravity \
+    pkief.material-icon-theme \
     humao.rest-client \
     jasonnutter.search-node-modules \
     mgmcdermott.vscode-language-babel \
