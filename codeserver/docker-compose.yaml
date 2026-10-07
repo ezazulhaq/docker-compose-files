@@ -1,6 +1,5 @@
 services:
   code-server:
-    build: .
     image: ghcr.io/ezazulhaq/custom-code-server:latest
     restart: unless-stopped
     expose:
