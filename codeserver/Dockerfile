@@ -39,6 +39,9 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | b
 # Install uv (fast Python package installer)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
+# Install Antigravity CLI
+RUN curl -fsSL https://antigravity.google/cli/install.sh | bash
+
 # Pre-install VS Code extensions
 RUN extensions="angular.ng-template \
     dbaeumer.vscode-eslint \
