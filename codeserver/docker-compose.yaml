@@ -1,6 +1,7 @@
 services:
   code-server:
-    image: codercom/code-server:4.121.0
+    build: .
+    image: ghcr.io/ezazulhaq/custom-code-server:latest
     restart: unless-stopped
     expose:
       - 8080
