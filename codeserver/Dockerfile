@@ -17,12 +17,12 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 # Switch back to the default coder user
 USER 1000
 
-# Install nvm (Node Version Manager) and the latest LTS version of Node.js
+# Install nvm (Node Version Manager) and Node.js version 24
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash \
     && export NVM_DIR="$HOME/.nvm" \
     && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
-    && nvm install --lts \
-    && nvm alias default 'lts/*'
+    && nvm install 24 \
+    && nvm alias default 24
 
 # Install uv (fast Python package installer)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
