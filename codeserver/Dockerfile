@@ -2,6 +2,31 @@ FROM codercom/code-server:4.121.0
 
 LABEL org.opencontainers.image.source=https://github.com/ezazulhaq/docker-compose-files
 
+USER root
+
+# Install Python 3, JDK 21, and necessary tools
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    openjdk-21-jdk \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Switch back to the default coder user
+USER 1000
+
+# Install nvm (Node Version Manager) and the latest LTS version of Node.js
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash \
+    && export NVM_DIR="$HOME/.nvm" \
+    && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
+    && nvm install --lts \
+    && nvm alias default 'lts/*'
+
+# Install uv (fast Python package installer)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Pre-install VS Code extensions
 RUN extensions="angular.ng-template \
     dbaeumer.vscode-eslint \
@@ -26,6 +51,5 @@ RUN extensions="angular.ng-template \
     vscjava.vscode-spring-boot-dashboard \
     vscjava.vscode-spring-initializr" && \
     for ext in $extensions; do \
-        code-server --install-extension $ext \
-        || echo "Warning: Failed to install $ext, it might not be available in Open VSX."; \
+        code-server --install-extension $ext || echo "Warning: Failed to install $ext, it might not be available in Open VSX."; \
     done
