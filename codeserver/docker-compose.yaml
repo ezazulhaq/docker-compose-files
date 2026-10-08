@@ -10,7 +10,8 @@ services:
     environment:
       - PASSWORD=${PASSWORD}
       - TZ=${TZ}
-    user: "1000:1000"
+    user: "1001:1001"
+    command: /home/coder/workspace
 
 volumes:
   code-server-home:
