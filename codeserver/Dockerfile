@@ -1,4 +1,4 @@
-FROM codercom/code-server:4.121.0
+FROM codercom/code-server:4.140.0
 
 LABEL org.opencontainers.image.source=https://github.com/ezazulhaq/docker-compose-files
 
@@ -26,8 +26,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64
 ENV PATH=$JAVA_HOME/bin:$PATH
 
-# Switch back to the default coder user
-USER 1000
+# Change coder user uid/gid to 1001 to match host workspace permissions
+RUN usermod -u 1001 coder && groupmod -g 1001 coder && chown -R 1001:1001 /home/coder
+
+# Switch back to the coder user (now UID 1001)
+USER 1001
 
 # Install nvm (Node Version Manager) and Node.js version 24
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash \
