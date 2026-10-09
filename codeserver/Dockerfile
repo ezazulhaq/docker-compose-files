@@ -65,7 +65,12 @@ RUN extensions="angular.ng-template \
     vscjava.vscode-java-test \
     vscjava.vscode-maven \
     vscjava.vscode-spring-boot-dashboard \
-    vscjava.vscode-spring-initializr" && \
+    vscjava.vscode-spring-initializr \
+    ms-python.python \
+    ms-python.debugpy \
+    ms-python.vscode-pylance \
+    ms-python.vscode-python-envs \
+    njpwerner.autodocstring" && \
     for ext in $extensions; do \
         code-server --install-extension $ext || echo "Warning: Failed to install $ext, it might not be available in Open VSX."; \
     done
