@@ -4,7 +4,7 @@ LABEL org.opencontainers.image.source=https://github.com/ezazulhaq/docker-compos
 
 USER root
 
-# Install Python 3, JDK 21, Maven, and necessary tools
+# Install Python 3, JDK 21, Maven, Docker CLI, and necessary tools
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
     python3-pip \
@@ -19,15 +19,23 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
     && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+    && chmod a+r /etc/apt/keyrings/docker.asc \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
     && apt-get update \
-    && apt-get install -y gh \
+    && apt-get install -y --no-install-recommends gh docker-ce-cli docker-compose-plugin docker-buildx-plugin \
     && rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64
 ENV PATH=$JAVA_HOME/bin:$PATH
+ENV DOCKER_CONFIG=/home/coder/.docker
 
-# Change coder user uid/gid to 1001 to match host workspace permissions
-RUN usermod -u 1001 coder && groupmod -g 1001 coder && chown -R 1001:1001 /home/coder
+# Change coder user uid/gid to 1001 to match host workspace permissions, setup docker group and config directory
+RUN usermod -u 1001 coder && groupmod -g 1001 coder \
+    && (groupadd -g 988 docker 2>/dev/null || groupadd -f docker) \
+    && usermod -aG docker coder \
+    && mkdir -p /home/coder/.docker /mnt/data/docker \
+    && chown -R 1001:1001 /home/coder
 
 # Switch back to the coder user (now UID 1001)
 USER 1001
@@ -54,6 +62,7 @@ RUN extensions="angular.ng-template \
     humao.rest-client \
     jasonnutter.search-node-modules \
     mgmcdermott.vscode-language-babel \
+    ms-azuretools.vscode-docker \
     redhat.java \
     sonarsource.sonarlint-vscode \
     vmware.vscode-boot-dev-pack \
