@@ -1,14 +1,21 @@
-# n8n Self-Hosted Stack (Traefik + PostgreSQL)
+# n8n Production Stack (Traefik + PostgreSQL + External Task Runners)
 
-Self-hosted [n8n](https://n8n.io/) workflow automation stack based on the [official n8n Docker Compose guide](https://docs.n8n.io/deploy/host-n8n/install-options/use-a-cloud-provider/use-docker-compose), extended with **PostgreSQL** for production persistence and **Traefik** for automatic Let's Encrypt HTTPS.
+Production-ready self-hosted [n8n](https://n8n.io/) workflow automation stack aligned with n8n's [Docker Compose guide](https://docs.n8n.io/deploy/host-n8n/install-options/use-a-cloud-provider/use-docker-compose) and [Production requirements](https://docs.n8n.io/deploy/host-n8n/install-options/production-requirements).
 
-## Services
+## Architecture & Services
 
-| Service | Image | Ports | Purpose |
-| --- | --- | --- | --- |
-| `traefik` | `traefik:latest` | `80:80`, `443:443` | Reverse proxy and automatic TLS/SSL certificate management via ACME TLS challenge |
-| `n8n` | `docker.n8n.io/n8nio/n8n:2.49.6` | `127.0.0.1:5678:5678` | Workflow automation engine (routed via Traefik at `https://${SUBDOMAIN}.${DOMAIN_NAME}`) |
-| `postgres` | `postgres:18` | Internal only (`5432` on `n8n-internal`) | PostgreSQL database for n8n workflows, executions, and credentials (not exposed to host/public network) |
+| Service | Image | Network(s) | Ports | Purpose |
+| --- | --- | --- | --- | --- |
+| `traefik` | `traefik:v3` | `n8n-public` | `80:80`, `443:443` | Reverse proxy, HTTP→HTTPS redirect, and Let's Encrypt ACME TLS termination |
+| `n8n` | `docker.n8n.io/n8nio/n8n:2.49.6` | `n8n-public`, `n8n-internal`, `n8n-runners` | `127.0.0.1:5678:5678` | Main n8n editor, API, webhook handler, and task broker (`5679` internal) |
+| `n8n-runner` | `n8nio/runners:2.49.6` | `n8n-runners` (`internal: true`) | None | Isolated external task runner sidecar for Code node execution |
+| `postgres` | `postgres:18` | `n8n-internal` (`internal: true`) | Internal `5432` | Dedicated PostgreSQL database (no host ports, no public/runner access) |
+
+### Network Isolation
+
+- **`n8n-public`**: Bridges `traefik` and `n8n` for external HTTPS routing and outbound workflow HTTP requests. `traefik.docker.network=n8n-public` ensures Traefik routes only over this network.
+- **`n8n-internal` (`internal: true`)**: Isolates `postgres` so only `n8n` can reach it; `postgres` has no published ports and no internet/proxy access.
+- **`n8n-runners` (`internal: true`)**: Isolates `n8n-runner` so it can only communicate with `n8n`'s task broker on port `5679` and cannot reach `postgres` or the public network.
 
 ## Directory Structure
 
@@ -21,34 +28,46 @@ n8n/
 └── local-files/
 ```
 
-## Prerequisites
+## Production Pre-Deployment Checklist
 
-1. **DNS**: Point an `A` record for `${SUBDOMAIN}.${DOMAIN_NAME}` (e.g. `n8n.example.com`) to your server's public IP address.
-2. **Firewall**: Ensure inbound TCP ports `80` and `443` are open for HTTP→HTTPS redirection and Let's Encrypt TLS-ALPN-01 certificate validation.
+1. **64-bit Linux host** with Docker Engine and Docker Compose v2.
+2. **DNS**: Point an `A` record for `${SUBDOMAIN}.${DOMAIN_NAME}` to your server's public IP.
+3. **Firewall**:
+   - Allow inbound TCP `80` and `443` for HTTP→HTTPS redirection and Let's Encrypt TLS-ALPN-01 validation.
+   - Keep `5678` (bound to `127.0.0.1`), `5679`, and `5432` closed to the public internet.
+4. **Secrets in [`.env`](.env)**:
+   - Generate distinct 32-byte hex keys for `N8N_ENCRYPTION_KEY` and `N8N_RUNNERS_AUTH_TOKEN`:
+     ```bash
+     openssl rand -hex 32
+     ```
+   - Set strong, unique passwords for `POSTGRES_PASSWORD` and `POSTGRES_NON_ROOT_PASSWORD`.
+   - Back up `N8N_ENCRYPTION_KEY` securely; losing it prevents decrypting stored credentials.
+5. **Proxy hops**: Keep `N8N_PROXY_HOPS=1` when Traefik is directly in front of n8n; increase if you add an upstream CDN/load balancer (e.g. Cloudflare proxy).
+6. **Backup strategy**: Schedule automated backups of:
+   - PostgreSQL (`docker compose exec -T postgres pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > backup.sql`)
+   - `n8n_data` volume (`/home/node/.n8n`, which stores local binary data in `filesystem` mode)
+   - Your `.env` file (`N8N_ENCRYPTION_KEY`)
 
 ## Environment Variables (`.env`)
 
-Update [`.env`](.env) before starting the stack:
-
 | Variable | Description |
 | --- | --- |
-| `N8N_VERSION` | n8n Docker image tag (e.g. `2.49.6`) |
+| `N8N_VERSION` | Matching image tag for `n8nio/n8n` and `n8nio/runners` |
 | `DOMAIN_NAME` | Base domain name (e.g. `example.com`) |
 | `SUBDOMAIN` | Subdomain for n8n (e.g. `n8n`) |
-| `SSL_EMAIL` | Email address used for Let's Encrypt TLS certificates |
-| `GENERIC_TIMEZONE` | Timezone applied to both `TZ` and `GENERIC_TIMEZONE` (e.g. `Asia/Kolkata`) |
+| `SSL_EMAIL` | Email address for Let's Encrypt TLS certificates |
+| `N8N_PROXY_HOPS` | Number of trusted reverse-proxy hops (`1` for Traefik) |
+| `TRAEFIK_LOG_LEVEL` | Traefik log level (`WARN` recommended for production) |
+| `GENERIC_TIMEZONE` | Timezone applied to `TZ` and `GENERIC_TIMEZONE` |
 | `N8N_ENCRYPTION_KEY` | Secret key used to encrypt stored n8n credentials |
-| `POSTGRES_USER` | PostgreSQL superuser for initial DB setup and healthchecks |
+| `N8N_RUNNERS_AUTH_TOKEN` | Shared authentication secret between `n8n` and `n8n-runner` |
+| `POSTGRES_USER` | PostgreSQL superuser for DB initialization and healthchecks |
 | `POSTGRES_PASSWORD` | PostgreSQL superuser password |
 | `POSTGRES_DB` | PostgreSQL database name for n8n |
-| `POSTGRES_NON_ROOT_USER` | Dedicated least-privilege PostgreSQL user used by n8n at runtime |
+| `POSTGRES_NON_ROOT_USER` | Least-privilege PostgreSQL user used by n8n at runtime |
 | `POSTGRES_NON_ROOT_PASSWORD` | Password for `POSTGRES_NON_ROOT_USER` |
-
-Generate strong secrets for `N8N_ENCRYPTION_KEY` and database passwords:
-
-```bash
-openssl rand -hex 32
-```
+| `EXECUTIONS_DATA_MAX_AGE` | Retention window in hours before execution pruning (`336` = 14 days) |
+| `EXECUTIONS_DATA_PRUNE_MAX_COUNT` | Maximum retained execution records |
 
 ## Deployment
 
@@ -57,10 +76,11 @@ cd n8n
 docker compose up -d
 ```
 
-To view logs:
+Check service health:
 
 ```bash
-docker compose logs -f n8n
+docker compose ps
+docker compose logs -f n8n n8n-runner
 ```
 
 To stop the stack:
@@ -69,11 +89,6 @@ To stop the stack:
 docker compose down
 ```
 
-## Volumes & File Access
+## Scaling to Queue Mode (Optional)
 
-| Mount / Volume | Container Path | Purpose |
-| --- | --- | --- |
-| `n8n_data` | `/home/node/.n8n` | n8n configuration and local instance files |
-| `postgres_data` | `/var/lib/postgresql/data` | Persistent PostgreSQL database storage |
-| `traefik_data` | `/letsencrypt` | Traefik `acme.json` TLS certificates |
-| `./local-files` | `/files` | Shared host directory (`N8N_RESTRICT_FILE_ACCESS_TO=/files`) |
+This setup runs in `regular` execution mode with an external task runner and `filesystem` binary data storage. If your workload outgrows a single instance, add a persistent **Redis** service, switch `EXECUTIONS_MODE=queue`, run dedicated `worker` (and optional `webhook`) containers, and move binary data to shared storage or supported external storage (S3 / Azure Blob Storage).
