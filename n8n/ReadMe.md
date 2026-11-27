@@ -64,4 +64,5 @@ docker compose exec n8n wget -qO- "http://searxng:8080/search?q=n8n&format=json"
 ## Maintenance & Backups
 
 - **Backups**: Back up `postgres_data` (`pg_dump`), `n8n_data` (`/home/node/.n8n`), `n8n_files` (`/files`), and `N8N_ENCRYPTION_KEY`.
+- **Volumes**: Named volumes `searxng_config` and `searxng_data` store SearXNG's config/cache cleanly without anonymous volume conflicts.
 - **Sandbox TLS Certs**: `sandbox-certs` does not auto-renew mTLS certificates; if certs expire, remove the `sandbox_tls` volume and redeploy so `sandbox-certs` regenerates them.

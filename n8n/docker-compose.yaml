@@ -139,6 +139,9 @@ services:
       - "8080"
     environment:
       SEARXNG_SECRET: ${SEARXNG_SECRET}
+    volumes:
+      - searxng_config:/etc/searxng
+      - searxng_data:/var/cache/searxng
     configs:
       - source: searxng_settings
         target: /etc/searxng/settings.yml
@@ -228,6 +231,8 @@ volumes:
   n8n_files:
   postgres_data:
   sandbox_tls:
+  searxng_config:
+  searxng_data:
 
 networks:
   n8n-public:
